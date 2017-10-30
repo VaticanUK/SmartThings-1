@@ -54,6 +54,7 @@ metadata {
     preferences {
         input("password", "password", title:"Password", required:false, displayDuringSetup:false)
         input("bridgeip", "string", title:"Neo Bridge IP Address", description: "e.g. 192.168.1.10", required: true, displayDuringSetup: true)
+        input("bridgeport", "string", title:"Neo Bridge Port", description: "e.g. 80", required: true, displayDuringSetup: true)
         input("neohubip", "string", title:"NeoHub IP Address", description: "e.g. 192.168.1.11", required: true, displayDuringSetup: true)
         input("prestatname", "string", title:"Add before stat name", description: "e.g. 'Thermostat' would give 'Thermostat Kitchen'", required: false, displayDuringSetup: true)
         input("poststatname", "string", title:"Add after stat name", description: "e.g. 'Thermostat' would give 'Kitchen Thermostat'", required: false, displayDuringSetup: true)
@@ -146,10 +147,12 @@ def refreshipaddresses() {
 def refresh() {
 	log.debug "parent triggered refresh"
     childRequestingRefresh()
+    configureAutoRefresh()
 }
 def installed() {
 	log.debug "installed()"
     refreshipaddresses()
+    configureAutoRefresh()
 }
 def uninstalled() {
     removethermostats()
@@ -157,6 +160,7 @@ def uninstalled() {
 def updated() {
 	log.debug "updated()"
     refreshipaddresses()
+    configureAutoRefresh()
 }
 def ping() {
     log.debug "ping()"
@@ -209,71 +213,110 @@ def childRequestingRefresh(String dni) {
     //Add it here to try and do it automatically in 10mins - still not working reliably so disabled
     //runEvery10Minutes(childRequestingRefresh())
 }
+
 def childAwayOn(String dni) {
 	//Send Child Away on command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting away mode on for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"AWAY_ON\":\"${deviceid}\"}")
 }
+
 def childAwayOff(String dni) {
 	//Send Child Away off command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting away mode off for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"AWAY_OFF\":\"${deviceid}\"}")
 }
+
 def childHeat(String dni) {
 	//Send Child Heat mode
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting heat mode for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"HEAT\":\"${deviceid}\"}")
 }
-def childSetTemp(String temp, String dni) {
+
+def childSetTemp(int temp, String dni) {
 	//Send Child Set Temp command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting ${temp} degrees for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"SET_TEMP\":[${temp},\"${deviceid}\"]}")
 }
+
 def childCancelHold(String dni) {
 	//Send Child Set Temp command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting revert to schedule for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"TIMER_HOLD_OFF\":[0,\"${deviceid}\"]}")
 }
-def childHold(String temp, String hours, String minutes, String dni) {
+
+def childHold(int temp, int hours, int minutes, String dni) {
 	//Send Child Hold command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting Hold at ${temp} degrees for ${hours}h:${mins}m for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"HOLD\":[{\"temp\":${temp},\"id\":\"\",\"hours\":${hours},\"minutes\":${minutes}},\"${deviceid}\"]}")
 }
-def childBoostOn(String hours, String minutes, String dni) {
+
+def childBoostOn(int hours, int minutes, String dni) {
 	//Send Child Boost On command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting boost on for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"BOOST_ON\":[{\"hours\":${hours},\"minutes\":${minutes}},\"${deviceid}\"]}")
 }
-def childBoostOff(String hours, String minutes, String dni) {
+
+def childBoostOff(int hours, int minutes, String dni) {
 	//Send Child Boost On command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting boost off for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"BOOST_OFF\":[{\"hours\":${hours},\"minutes\":${minutes}},\"${deviceid}\"]}")
 }
+
 def childFrostOn(String dni) {
 	//Send Child Frost On command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting frost on for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"FROST_ON\":\"${deviceid}\"}")
 }
+
 def childFrostOff(String dni) {
 	//Send Child Frost On command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting frost off for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"FROST_OFF\":\"${deviceid}\"}")
 }
-def childSetFrost(String temp, String dni) {
+
+def childSetFrost(int temp, String dni) {
 	//Send Child Set Frost command
     def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
     log.debug "Requesting set frost at ${temp} degrees for child ${deviceid}"
 	getAction("/neorelay?device=${dni}&command={\"SET_FROST\":[\"${temp}\",\"${deviceid}\"]}")
+}
+
+def childTimerOn(String dni) {
+	//Send Child Timer On command
+    def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
+    log.debug "Requesting timer on for child ${deviceid}"
+    getAction("/neorelay?device=${dni}&command={\"TIMER_ON\":\"${deviceid}\"}")
+}
+
+def childTimerOff(String dni) {
+	//Send Child Timer Off command
+    def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
+    log.debug "Requesting timer off for child ${deviceid}"
+    getAction("/neorelay?device=${dni}&command={\"TIMER_OFF\":\"${deviceid}\"}")
+}
+
+def childTimerHoldOn(int minutes, String dni) {
+	//Send Child Timer Hold On command
+    def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
+    log.debug "Requesting timer hold on for child ${deviceid}"
+    getAction("/neorelay?device=${dni}&command={\"TIMER_HOLD_ON\":[\"${minutes}\", \"${deviceid}\"]}")
+}
+
+def childTimerHoldOff(int minutes, String dni) {
+	//Send Child Timer Hold Off command
+    def deviceid = dni.replaceAll("neostat", "").replaceAll("-", " ")
+    log.debug "Requesting timer hold off for child ${deviceid}"
+    getAction("/neorelay?device=${dni}&command={\"TIMER_HOLD_OFF\":[\"${minutes}\", \"${deviceid}\"]}")
 }
 
 // This function receives the response from the NeoHub bridge and updates things, or passes the response to an individual thermostat
@@ -287,10 +330,11 @@ def parse(description) {
 
     def body = new String(descMap["body"].decodeBase64())
 
+	log.debug body
+
     def slurper = new JsonSlurper()
     def result = slurper.parseText(body)
     
-    log.debug result
     cmds << sendEvent(name: "lastcommand", value: "${result}", isStateChange: true)
     
     if (result.containsKey("relaydevice")) {
@@ -339,6 +383,7 @@ def parse(description) {
 
 //These functions are helper functions to talk to the NeoHub Bridge
 def getAction(uri){ 
+	uri = uri.replaceAll(' ', '%20')
   log.debug "uri ${uri}"
   updateDNI()
   
@@ -354,6 +399,8 @@ def getAction(uri){
     path: uri,
     headers: headers
   )
+  
+  sendHubCommand(hubAction)
   return hubAction    
 }
 
@@ -364,8 +411,14 @@ def parseDescriptionAsMap(description) {
 	}
 }
 
+def configureAutoRefresh() {
+	runEvery1Minute(childRequestingRefresh)
+}
+
 private getHeader(userpass = null){
     def headers = [:]
+    def host = getHostAddress()
+    log.debug "using hub IP: " + host
     headers.put("Host", getHostAddress())
     headers.put("Content-Type", "application/x-www-form-urlencoded")
     if (userpass != null)
